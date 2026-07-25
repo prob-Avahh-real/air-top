@@ -1,0 +1,20 @@
+{
+  "appId": "com.skat.airtop",
+  "appName": "空气陀螺",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0c1418"
+    }
+  }
+}

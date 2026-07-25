@@ -1,0 +1,15 @@
+node_modules/
+mobile/node_modules/
+mobile/www/
+mobile/android/
+mobile/ios/
+.DS_Store
+*.log
+dist/
+.idea/
+.vscode/
+*.apk
+*.ipa
+.env
+.env.*
+!*.example

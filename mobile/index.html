@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0c1418">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>空气陀螺</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --ink: #0c1418;
+      --deep: #071015;
+      --foam: #e8f1f4;
+      --muted: #7a929c;
+      --accent: #c4783a;
+      --accent-dim: color-mix(in srgb, var(--accent) 32%, transparent);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --safe-t: env(safe-area-inset-top, 0px);
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: "Noto Sans SC", "Syne", sans-serif;
+      color: var(--foam);
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 18%, var(--accent-dim), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 10% 90%, rgba(62, 120, 140, 0.18), transparent 50%),
+        linear-gradient(168deg, #152228 0%, var(--ink) 48%, var(--deep) 100%);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: calc(12px + var(--safe-t)) 16px calc(14px + var(--safe-b));
+      user-select: none;
+      perspective: 800px;
+      transition: background 0.45s ease;
+    }
+    body[data-top="metal"] {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 18%, var(--accent-dim), transparent 55%),
+        linear-gradient(168deg, #1a232c 0%, #0c1218 50%, #060a0e 100%);
+    }
+    body[data-top="neon"] {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 18%, var(--accent-dim), transparent 55%),
+        radial-gradient(ellipse 40% 35% at 85% 75%, rgba(62, 207, 154, 0.12), transparent 50%),
+        linear-gradient(168deg, #0e1c1a 0%, #071210 50%, #040a08 100%);
+    }
+    body[data-top="glass"] {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 18%, var(--accent-dim), transparent 55%),
+        linear-gradient(168deg, #12202a 0%, #0a141c 50%, #050a10 100%);
+    }
+
+    .top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .brand {
+      font-family: "Syne", "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.4rem, 5.2vw, 1.85rem);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      animation: brandIn 0.7s ease-out both;
+    }
+    .brand span {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+    .badges { display: flex; flex-direction: column; gap: 6px; }
+    .badge {
+      font-size: 0.68rem;
+      padding: 6px 10px;
+      border: 1px solid rgba(122, 146, 156, 0.35);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(7, 16, 21, 0.5);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .badge.active {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+      background: color-mix(in srgb, var(--accent) 16%, transparent);
+    }
+
+    .top-tabs {
+      display: flex;
+      gap: 6px;
+      margin: 8px 0 10px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .top-tabs::-webkit-scrollbar { display: none; }
+    .top-tab {
+      flex: 0 0 auto;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: color 0.2s, background 0.2s;
+    }
+    .top-tab.active {
+      color: var(--deep);
+      background: var(--accent);
+    }
+
+    .hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .hud-cell {
+      text-align: center;
+      padding: 8px 4px;
+      border-radius: 12px;
+      background: rgba(7, 16, 21, 0.4);
+      border: 1px solid rgba(122, 146, 156, 0.18);
+    }
+    .hud-cell .v {
+      font-family: "Syne", sans-serif;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: -0.02em;
+      color: var(--foam);
+    }
+    .hud-cell .l {
+      font-size: 0.62rem;
+      color: var(--muted);
+      margin-top: 2px;
+      letter-spacing: 0.06em;
+    }
+    #status[data-state="spin"] { color: var(--accent); }
+    #status[data-state="fallen"] { color: #e88878; }
+    #status[data-state="idle"] { color: var(--muted); }
+
+    .rpm-track {
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(122, 146, 156, 0.2);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    #rpm-bar {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+      transition: width 0.08s linear;
+    }
+
+    #arena {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      min-height: 0;
+      touch-action: none;
+      cursor: grab;
+    }
+    #arena:active { cursor: grabbing; }
+
+    .nameplate {
+      text-align: center;
+      z-index: 2;
+      margin-bottom: 4px;
+      animation: rise 0.55s ease-out both;
+    }
+    .nameplate .name {
+      font-family: "Syne", "Noto Sans SC", sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.2rem, 11vw, 3.4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      text-shadow: 0 8px 36px color-mix(in srgb, var(--accent) 35%, transparent);
+    }
+    .nameplate .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .floor {
+      position: relative;
+      width: min(280px, 78vw);
+      height: min(220px, 62vw);
+      display: grid;
+      place-items: end center;
+      margin: 8px 0;
+    }
+    #shadow {
+      position: absolute;
+      bottom: 18%;
+      left: 50%;
+      width: 46%;
+      height: 18%;
+      margin-left: -23%;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 70%);
+      filter: blur(4px);
+      transition: opacity 0.15s;
+      pointer-events: none;
+    }
+    #top-visual {
+      width: 42%;
+      height: 58%;
+      position: relative;
+      transform-style: preserve-3d;
+      transform-origin: 50% 85%;
+      will-change: transform;
+      transition: filter 0.2s;
+    }
+    #top-visual.whip {
+      animation: whipPulse 0.28s ease-out;
+    }
+    #top-visual.fallen {
+      filter: saturate(0.7) brightness(0.85);
+    }
+    #top-body {
+      position: absolute;
+      inset: 0;
+      background:
+        conic-gradient(
+          from var(--spin, 0deg),
+          color-mix(in srgb, var(--accent) 88%, #fff) 0deg,
+          color-mix(in srgb, var(--accent) 55%, #1a1010) 90deg,
+          color-mix(in srgb, var(--accent) 95%, #fff) 180deg,
+          color-mix(in srgb, var(--accent) 40%, #0a0808) 270deg,
+          color-mix(in srgb, var(--accent) 88%, #fff) 360deg
+        );
+      clip-path: polygon(50% 0%, 78% 38%, 68% 100%, 32% 100%, 22% 38%);
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.45),
+        inset 0 0 20px rgba(255, 255, 255, 0.12);
+    }
+    #top-body::before {
+      content: "";
+      position: absolute;
+      left: 42%;
+      top: 8%;
+      width: 16%;
+      height: 22%;
+      border-radius: 40% 40% 30% 30%;
+      background: linear-gradient(180deg, #f4f0ea, color-mix(in srgb, var(--accent) 40%, #666));
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    #top-body::after {
+      content: "";
+      position: absolute;
+      left: 46%;
+      bottom: -2%;
+      width: 8%;
+      height: 10%;
+      border-radius: 50%;
+      background: #2a2220;
+    }
+    body[data-top="neon"] #top-body {
+      box-shadow:
+        0 0 24px color-mix(in srgb, var(--accent) 45%, transparent),
+        0 12px 28px rgba(0, 0, 0, 0.4),
+        inset 0 0 20px rgba(255, 255, 255, 0.15);
+    }
+    body[data-top="glass"] #top-body {
+      opacity: 0.92;
+      filter: saturate(1.15);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr 1fr 0.9fr;
+      gap: 8px;
+      width: 100%;
+      max-width: 440px;
+      align-self: center;
+      margin-top: 6px;
+    }
+    .controls button {
+      border: none;
+      font: inherit;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 15px 8px;
+      border-radius: 16px;
+      cursor: pointer;
+      color: var(--foam);
+      background: rgba(7, 16, 21, 0.55);
+      border: 1px solid rgba(122, 146, 156, 0.28);
+    }
+    #whip-btn {
+      background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+      color: #0a1210;
+      border: none;
+      font-size: 1.02rem;
+      letter-spacing: 0.04em;
+    }
+    #mute-btn.on {
+      color: #ffb4a8;
+      border-color: rgba(255, 180, 168, 0.45);
+    }
+
+    .help {
+      text-align: center;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(24px + var(--safe-b));
+      transform: translateX(-50%) translateY(12px);
+      background: rgba(7, 16, 21, 0.92);
+      border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+      color: var(--accent);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 40;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @keyframes brandIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes whipPulse {
+      0% { filter: brightness(1); }
+      40% { filter: brightness(1.35); }
+      100% { filter: brightness(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media (max-width: 280px), (max-height: 300px) {
+      body { padding: 6px; }
+      .brand { font-size: 0.95rem; }
+      .brand span, .help, .badges, #mute-btn, #upright-btn { display: none; }
+      .top-tabs { margin: 4px 0 6px; }
+      .top-tab { font-size: 0.62rem; padding: 4px 8px; }
+      .hud { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+      .hud-cell { padding: 4px; }
+      .hud-cell .v { font-size: 0.85rem; }
+      .nameplate .name { font-size: 1.5rem; }
+      .nameplate .hint { display: none; }
+      .floor { width: 100px; height: 80px; }
+      .controls { grid-template-columns: 1fr 1.3fr; margin-top: 4px; }
+      #whip-btn, #tap-btn { padding: 10px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body data-top="wood">
+  <header class="top">
+    <h1 class="brand">空气陀螺<span>Air Top</span></h1>
+    <div class="badges">
+      <div class="badge" id="ring-badge">戒指 · 点击启用</div>
+      <div class="badge" id="cane-badge">手杖 · 点击启用</div>
+    </div>
+  </header>
+
+  <div class="top-tabs" id="top-tabs" aria-label="陀螺款式"></div>
+
+  <div class="hud" aria-live="polite">
+    <div class="hud-cell"><div class="v" id="rpm">0</div><div class="l">RPM</div></div>
+    <div class="hud-cell"><div class="v" id="spin-time">0s</div><div class="l">时长</div></div>
+    <div class="hud-cell"><div class="v" id="lean-val">0°</div><div class="l">倾角</div></div>
+    <div class="hud-cell"><div class="v" id="best-time">0s</div><div class="l">最佳</div></div>
+  </div>
+  <div class="rpm-track" aria-hidden="true"><div id="rpm-bar"></div></div>
+
+  <main id="arena">
+    <div class="nameplate">
+      <div class="name" id="top-name">木质</div>
+      <div class="hint" id="top-hint">稳、温润</div>
+      <div class="hint" id="status" data-state="idle">待命</div>
+    </div>
+
+    <div class="floor" aria-hidden="true">
+      <div id="shadow"></div>
+      <div id="top-visual">
+        <div id="top-body"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="controls">
+    <button type="button" id="tap-btn">点地</button>
+    <button type="button" id="whip-btn">抽打</button>
+    <button type="button" id="upright-btn">扶正</button>
+    <button type="button" id="mute-btn">静音</button>
+  </div>
+  <p class="help">戒指左右调倾角 · 上下换款 · 手杖挥动抽打 · 敲击点地<br>舞台左右拖动调倾 · 空格抽打 · T 点地 · R 扶正 · M 静音</p>
+
+  <div id="toast" role="status"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

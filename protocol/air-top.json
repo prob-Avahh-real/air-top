@@ -1,0 +1,31 @@
+{
+  "name": "air-top",
+  "version": "1.0.0",
+  "description": "空气陀螺手势与陀螺款式协议",
+  "gestures": {
+    "ring": {
+      "tilt_left": { "action": "lean_left", "threshold_deg": 5, "throttle_frames": 8 },
+      "tilt_right": { "action": "lean_right", "threshold_deg": 5, "throttle_frames": 8 },
+      "tilt_up": { "action": "prev_top", "threshold_deg": 5, "throttle_frames": 8 },
+      "tilt_down": { "action": "next_top", "threshold_deg": 5, "throttle_frames": 8 },
+      "shake": { "action": "toggle_mute", "threshold_deg": 20, "throttle_frames": 8 }
+    },
+    "cane": {
+      "swing": { "action": "whip", "threshold": 3, "throttle_frames": 6 },
+      "tap": { "action": "tap", "accel_spike": 8, "throttle_frames": 6 }
+    }
+  },
+  "tops": [
+    { "id": "wood", "label": "木质", "friction": 0.985, "mass": 1.0 },
+    { "id": "metal", "label": "金属", "friction": 0.992, "mass": 1.35 },
+    { "id": "neon", "label": "霓虹", "friction": 0.978, "mass": 0.75 },
+    { "id": "glass", "label": "琉璃", "friction": 0.988, "mass": 0.9 }
+  ],
+  "physics": {
+    "min_rpm_alive": 40,
+    "max_rpm": 2400,
+    "whip_boost": 280,
+    "tap_boost": 120,
+    "fall_lean": 28
+  }
+}

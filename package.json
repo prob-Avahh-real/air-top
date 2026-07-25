@@ -1,0 +1,9 @@
+{
+  "name": "air-top",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "npm --prefix mobile test"
+  }
+}
