@@ -49,10 +49,12 @@ npx serve www
 
 ## 在线 Demo
 
-- **GitHub Pages**：https://prob-avahh-real.github.io/air-top/
+本仓库目前为 **private**，GitHub Free 无法直接开 Pages。可玩 Demo 挂在个人 IP 站点子路径：
+
+- **Demo**：https://prob-avahh-real.github.io/personal-ip/air-top/
 - **个人 IP 入口**：https://prob-avahh-real.github.io/personal-ip/（作品集 · 空气陀螺）
 
-推送到 `main` 后由 `.github/workflows/pages.yml` 自动构建 `mobile/www` 并发布。
+同步方式：在 `mobile/` 跑 `npm run build`，把 `www/` 拷到 `personal-ip/public/air-top/` 后推送 personal-ip。若仓库改为 public，可用 `.github/workflows/pages.yml` 单独发布。
 
 ## 打包 Android / iOS
 
