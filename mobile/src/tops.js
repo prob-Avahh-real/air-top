@@ -47,7 +47,14 @@ export const PHYSICS = {
   maxRpm: 2400,
   whipBoost: 280,
   tapBoost: 120,
-  fallLean: 28,
+  fallLean: 75,
+  fallThetaDeg: 75,
   leanStep: 4.5,
-  uprightRate: 0.12,
+  /** World: +Z up, tip at origin. Playable SI-scaled rigid body. */
+  g: 9.81,
+  h: 0.04,
+  I1: 1.4e-4,
+  I3: 4.0e-4,
+  Lmin: 1e-5,
+  nutationDamp: 3.2,
 };

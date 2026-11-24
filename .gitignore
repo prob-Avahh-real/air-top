@@ -13,3 +13,16 @@ dist/
 .env
 .env.*
 !*.example
+
+# Build, cache & secret exclusions
+!.env.example
+.npm-cache/
+.build/
+DerivedData/
+.gradle/
+android/app/build/
+android/build/
+android/.gradle/
+__pycache__/
+.venv/
+*.aab

@@ -56,6 +56,18 @@ function formatTime(sec) {
   return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : `${r}s`;
 }
 
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function gestureVelocity(detail, fallback = 0.85) {
+  const explicit = Number(detail?.velocity);
+  if (Number.isFinite(explicit)) return clamp(explicit, 0.35, 1.3);
+  const spike = Number(detail?.spike);
+  if (Number.isFinite(spike)) return clamp(spike / 12, 0.35, 1.25);
+  return fallback;
+}
+
 function renderChrome() {
   const top = currentTop();
   applyTheme();
@@ -63,15 +75,26 @@ function renderChrome() {
   $('top-hint').textContent = top.description;
 
   const tabs = $('top-tabs');
-  tabs.innerHTML = TOPS.map(
-    (t, i) => `
-    <button type="button" class="top-tab ${i === state.topIndex ? 'active' : ''}" data-i="${i}">
-      ${t.label}
-    </button>`
-  ).join('');
+  if (!tabs.dataset.ready) {
+    tabs.innerHTML = TOPS.map(
+      (t, i) =>
+        `<button type="button" class="top-tab" data-i="${i}" aria-pressed="false">${t.label}</button>`,
+    ).join('');
+    tabs.dataset.ready = '1';
+  }
+  tabs.querySelectorAll('.top-tab').forEach((btn) => {
+    const i = Number(btn.dataset.i);
+    const on = i === state.topIndex;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
 
-  $('mute-btn').classList.toggle('on', state.muted);
-  $('mute-btn').textContent = state.muted ? '已静音' : '静音';
+  const muteBtn = $('mute-btn');
+  muteBtn.classList.toggle('on', state.muted);
+  const muteLabel = state.muted ? '已静音' : '静音';
+  muteBtn.setAttribute('aria-label', muteLabel);
+  muteBtn.dataset.tip = muteLabel;
+  muteBtn.title = muteLabel;
   $('best-time').textContent = formatTime(Math.max(state.bestTime, state.sessionBest));
 }
 
@@ -83,34 +106,46 @@ function renderHud(snap) {
   $('status').dataset.state = snap.fallen ? 'fallen' : snap.alive ? 'spin' : 'idle';
 
   const topEl = $('top-visual');
+  const spinEl = $('top-spin');
   const shadow = $('shadow');
   const leanX = snap.leanX;
   const leanY = snap.leanY;
-  const wobble = snap.wobble * 8;
-  const rot = (snap.angle * 180) / Math.PI;
-  const tilt = Math.min(32, snap.leanMag * 0.9);
+  const wobble = snap.wobble * 6;
+  const spinDeg = (snap.angle * 180) / Math.PI;
+  // CSS screen-space Y points downward, so use -leanY for azimuth.
+  // This keeps precession direction aligned with visual lean direction.
+  const azimuth = (Math.atan2(leanX, -leanY) * 180) / Math.PI;
+  const tilt = Math.min(72, snap.leanMag);
   const scale = snap.fallen ? 0.92 : 1;
 
   if (snap.fallen) {
-    topEl.style.transform = `translate(${leanX * 1.2}px, 28px) rotate(${45 + leanX}deg) scale(${scale})`;
     topEl.classList.add('fallen');
-  } else {
-    topEl.classList.remove('fallen');
+    // Tip over onto the side — still an upright body that fell, not a flat coin
     topEl.style.transform = `
-      translate(${leanX * 0.6 + Math.sin(snap.angle * 3) * wobble * 0.15}px, ${leanY * 0.15}px)
-      rotateX(${12 + tilt * 0.3}deg)
-      rotateZ(${rot}deg)
-      rotateY(${leanX * 0.35}deg)
+      translate(${leanX * 1.1}px, 36px)
+      rotateX(20deg)
+      rotateZ(${azimuth}deg)
+      rotateX(${72 + leanX * 0.15}deg)
       scale(${scale})
     `;
+    if (spinEl) spinEl.style.transform = `rotateY(${spinDeg}deg)`;
+  } else {
+    topEl.classList.remove('fallen');
+    // Outer: slight top-down camera + precession azimuth + tip angle
+    // Inner (#top-spin): rotateY about vertical symmetry axis through tip
+    topEl.style.transform = `
+      translate(${leanX * 0.55 + Math.sin(snap.angle * 2.2) * wobble * 0.12}px, ${2 + leanY * 0.1}px)
+      rotateX(20deg)
+      rotateZ(${azimuth}deg)
+      rotateX(${tilt}deg)
+      scale(${scale})
+    `;
+    if (spinEl) {
+      spinEl.style.transform = `rotateY(${spinDeg}deg)`;
+    }
   }
 
-  const spinBody = $('top-body');
-  if (spinBody) {
-    spinBody.style.setProperty('--spin', `${rot}deg`);
-  }
-
-  shadow.style.transform = `translateX(${leanX * 0.9}px) scale(${1 + snap.leanMag * 0.008}, ${0.55 + snap.wobble * 0.2})`;
+  shadow.style.transform = `translateX(${leanX * 0.95}px) scale(${1 + snap.leanMag * 0.01}, ${0.55 + snap.wobble * 0.22})`;
   shadow.style.opacity = String(0.25 + Math.min(0.45, snap.rpm / 3000));
 
   const rpmBar = $('rpm-bar');
@@ -164,6 +199,20 @@ function doUpright() {
 
 function handleGesture(gesture, detail) {
   switch (gesture) {
+    case 'tilt': {
+      const dir = detail?.dir;
+      if (dir === 'left') physics.lean(-PHYSICS.leanStep, 0);
+      else if (dir === 'right') physics.lean(PHYSICS.leanStep, 0);
+      else if (dir === 'up') selectTop(state.topIndex - 1);
+      else if (dir === 'down') selectTop(state.topIndex + 1);
+      break;
+    }
+    case 'shake':
+      setMuted(!state.muted);
+      break;
+    case 'swing':
+      doWhip({ velocity: gestureVelocity(detail, 0.9) });
+      break;
     case 'lean_left':
       physics.lean(-PHYSICS.leanStep, 0);
       break;
@@ -177,10 +226,10 @@ function handleGesture(gesture, detail) {
       selectTop(state.topIndex + 1);
       break;
     case 'whip':
-      doWhip(detail || { velocity: 0.85 });
+      doWhip({ velocity: gestureVelocity(detail, 0.85) });
       break;
     case 'tap':
-      doTap(detail || { velocity: 0.85 });
+      doTap({ velocity: gestureVelocity(detail, 0.85) });
       break;
     case 'toggle_mute':
       setMuted(!state.muted);
@@ -191,6 +240,7 @@ function handleGesture(gesture, detail) {
 }
 
 const wearable = new WearableInput({
+  profile: 'generic',
   onGesture: handleGesture,
   onBadge: (kind, text, active) => {
     const el = $(`${kind}-badge`);
@@ -203,8 +253,11 @@ const wearable = new WearableInput({
 function bindUi() {
   $('top-tabs').addEventListener('click', (e) => {
     const btn = e.target.closest('.top-tab');
-    if (!btn) return;
-    selectTop(Number(btn.dataset.i));
+    if (!btn || !('i' in btn.dataset)) return;
+    const i = Number(btn.dataset.i);
+    if (!Number.isFinite(i) || i === state.topIndex) return;
+    e.preventDefault();
+    selectTop(i);
   });
 
   $('whip-btn').addEventListener('click', () => doWhip({ velocity: 1.0 }));

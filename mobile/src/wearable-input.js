@@ -10,12 +10,19 @@
  */
 
 export const WEARABLE_DEFAULTS = {
-  RING_TILT: 5,
-  RING_SHAKE: 20,
-  CANE_TAP: 8,
-  CANE_SWING: 3,
-  RING_THROTTLE: 8,
-  CANE_THROTTLE: 6,
+  // iOS real-device tuned defaults
+  RING_TILT: 6.5,
+  RING_SHAKE: 24,
+  CANE_TAP: 9,
+  CANE_SWING: 3.6,
+  RING_THROTTLE: 6,
+  CANE_THROTTLE: 5,
+  RING_AXIS_DOMINANCE: 1.18,
+  RING_LEAN_COOLDOWN_MS: 95,
+  RING_STYLE_COOLDOWN_MS: 650,
+  RING_SHAKE_COOLDOWN_MS: 900,
+  CANE_TAP_COOLDOWN_MS: 190,
+  CANE_SWING_COOLDOWN_MS: 240,
 };
 
 /**
@@ -40,6 +47,12 @@ export function createWearableInput(handlers = {}) {
     CANE_SWING,
     RING_THROTTLE,
     CANE_THROTTLE,
+    RING_AXIS_DOMINANCE,
+    RING_LEAN_COOLDOWN_MS,
+    RING_STYLE_COOLDOWN_MS,
+    RING_SHAKE_COOLDOWN_MS,
+    CANE_TAP_COOLDOWN_MS,
+    CANE_SWING_COOLDOWN_MS,
   } = WEARABLE_DEFAULTS;
   const throttleMs = handlers.throttleMs ?? 600;
 
@@ -51,6 +64,11 @@ export function createWearableInput(handlers = {}) {
   let orientationHandler = null;
   let motionHandler = null;
   let lastAction = 0;
+  let lastRingTiltAt = 0;
+  let lastRingStyleAt = 0;
+  let lastRingShakeAt = 0;
+  let lastCaneTapAt = 0;
+  let lastCaneSwingAt = 0;
 
   function throttleAction(fn, ms = throttleMs) {
     const now = Date.now();
@@ -62,6 +80,7 @@ export function createWearableInput(handlers = {}) {
   function onRing(e) {
     ringFrames++;
     if (ringFrames % RING_THROTTLE !== 0) return;
+    const now = Date.now();
     const beta = e.beta ?? 0;
     const gamma = e.gamma ?? 0;
     const dBeta = Math.abs(beta - lastBeta);
@@ -70,34 +89,54 @@ export function createWearableInput(handlers = {}) {
     lastGamma = gamma;
 
     if (dBeta > RING_SHAKE || dGamma > RING_SHAKE) {
+      if (now - lastRingShakeAt < RING_SHAKE_COOLDOWN_MS) return;
+      lastRingShakeAt = now;
       throttleAction(() => handlers.onRingShake?.());
       return;
     }
-    // Tilts are not globally throttled — callers may want rapid UI updates
-    if (beta > RING_TILT) handlers.onRingTiltDown?.();
-    else if (beta < -RING_TILT) handlers.onRingTiltUp?.();
-    if (gamma > RING_TILT) handlers.onRingTiltRight?.();
-    else if (gamma < -RING_TILT) handlers.onRingTiltLeft?.();
+
+    const absBeta = Math.abs(beta);
+    const absGamma = Math.abs(gamma);
+    const gammaDominant = absGamma >= absBeta * RING_AXIS_DOMINANCE;
+
+    if (gammaDominant) {
+      if (absGamma <= RING_TILT || now - lastRingTiltAt < RING_LEAN_COOLDOWN_MS) return;
+      lastRingTiltAt = now;
+      if (gamma > 0) handlers.onRingTiltRight?.();
+      else handlers.onRingTiltLeft?.();
+      return;
+    }
+
+    if (absBeta > RING_TILT && now - lastRingStyleAt >= RING_STYLE_COOLDOWN_MS) {
+      lastRingStyleAt = now;
+      if (beta > 0) handlers.onRingTiltDown?.();
+      else handlers.onRingTiltUp?.();
+    }
   }
 
   function onCane(e) {
     caneFrames++;
     if (caneFrames % CANE_THROTTLE !== 0) return;
+    const now = Date.now();
     const a = e.accelerationIncludingGravity || e.acceleration;
     if (!a) return;
     const mag = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
     const spike = Math.abs(mag - 9.8);
     if (spike > CANE_TAP) {
+      if (now - lastCaneTapAt < CANE_TAP_COOLDOWN_MS) return;
+      lastCaneTapAt = now;
       throttleAction(() => handlers.onCaneTap?.());
       return;
     }
     if (Math.abs(a.x || 0) > CANE_SWING) {
+      if (now - lastCaneSwingAt < CANE_SWING_COOLDOWN_MS) return;
+      lastCaneSwingAt = now;
       const dir = (a.x || 0) > 0 ? 'right' : 'left';
       throttleAction(() => {
         handlers.onCaneSwing?.(dir);
         if (dir === 'right') handlers.onCaneSwingRight?.();
         else handlers.onCaneSwingLeft?.();
-      }, 800);
+      }, 320);
     }
   }
 
@@ -180,7 +219,7 @@ export class WearableInput {
     this.onGesture = opts.onGesture ?? (() => {});
     this.onAction = opts.onAction;
     this.onBadge = opts.onBadge ?? (() => {});
-    this.profile = opts.profile || 'aim-draw';
+    this.profile = opts.profile || 'generic';
     this.ringBadgeId = opts.ringBadgeId || 'ring-badge';
     this.caneBadgeId = opts.caneBadgeId || 'cane-badge';
     this.ringActive = false;
@@ -193,6 +232,11 @@ export class WearableInput {
     this.canePrevGamma = null;
     this.lastHitAt = 0;
     this.neutralBeta = null;
+    this.lastRingTiltAt = 0;
+    this.lastRingStyleAt = 0;
+    this.lastRingShakeAt = 0;
+    this.lastCaneTapAt = 0;
+    this.lastCaneSwingAt = 0;
   }
 
   setupRing() {
@@ -241,7 +285,16 @@ export class WearableInput {
     this.ringFrame++;
     const beta = e.beta || 0;
     const gamma = e.gamma || 0;
-    const { RING_TILT, RING_SHAKE, RING_THROTTLE } = WEARABLE_DEFAULTS;
+    const {
+      RING_TILT,
+      RING_SHAKE,
+      RING_THROTTLE,
+      RING_AXIS_DOMINANCE,
+      RING_LEAN_COOLDOWN_MS,
+      RING_STYLE_COOLDOWN_MS,
+      RING_SHAKE_COOLDOWN_MS,
+    } = WEARABLE_DEFAULTS;
+    const now = Date.now();
 
     if (this.profile === 'aim-draw') {
       if (this.ringFrame % 2 === 0) {
@@ -307,20 +360,44 @@ export class WearableInput {
     const dGamma = Math.abs(gamma - this.ringPrevGamma);
     this.ringPrevBeta = beta;
     this.ringPrevGamma = gamma;
+
     if (dBeta > RING_SHAKE || dGamma > RING_SHAKE) {
+      if (now - this.lastRingShakeAt < RING_SHAKE_COOLDOWN_MS) return;
+      this.lastRingShakeAt = now;
       this.onGesture('shake', { dBeta, dGamma });
       return;
     }
-    if (gamma > RING_TILT) this.onGesture('tilt', { dir: 'right', gamma });
-    else if (gamma < -RING_TILT) this.onGesture('tilt', { dir: 'left', gamma });
-    else if (beta > RING_TILT) this.onGesture('tilt', { dir: 'up', beta });
-    else if (beta < -RING_TILT) this.onGesture('tilt', { dir: 'down', beta });
+
+    const absBeta = Math.abs(beta);
+    const absGamma = Math.abs(gamma);
+    const gammaDominant = absGamma >= absBeta * RING_AXIS_DOMINANCE;
+
+    if (gammaDominant) {
+      if (absGamma <= RING_TILT || now - this.lastRingTiltAt < RING_LEAN_COOLDOWN_MS) return;
+      this.lastRingTiltAt = now;
+      if (gamma > 0) this.onGesture('tilt', { dir: 'right', gamma });
+      else this.onGesture('tilt', { dir: 'left', gamma });
+      return;
+    }
+
+    if (absBeta > RING_TILT && now - this.lastRingStyleAt >= RING_STYLE_COOLDOWN_MS) {
+      this.lastRingStyleAt = now;
+      if (beta > 0) this.onGesture('tilt', { dir: 'up', beta });
+      else this.onGesture('tilt', { dir: 'down', beta });
+    }
   }
 
   handleCane(e) {
     if (!this.caneActive) return;
     this.caneFrame++;
-    const { CANE_TAP, CANE_SWING, CANE_THROTTLE } = WEARABLE_DEFAULTS;
+    const {
+      CANE_TAP,
+      CANE_SWING,
+      CANE_THROTTLE,
+      CANE_TAP_COOLDOWN_MS,
+      CANE_SWING_COOLDOWN_MS,
+    } = WEARABLE_DEFAULTS;
+    const now = Date.now();
     if (this.caneFrame % CANE_THROTTLE !== 0) return;
 
     const a = e.accelerationIncludingGravity || e.acceleration || { x: 0, y: 0, z: 0 };
@@ -358,12 +435,16 @@ export class WearableInput {
     }
 
     if (dax > CANE_TAP || day > CANE_TAP || daz > CANE_TAP) {
+      if (now - this.lastCaneTapAt < CANE_TAP_COOLDOWN_MS) return;
+      this.lastCaneTapAt = now;
       const mag = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2);
       this.onGesture('tap', { spike: Math.max(dax, day, daz), mag });
       if (this.profile === 'steer') this.onGesture('chirp', {});
       return;
     }
     if (Math.abs(a.x || 0) > CANE_SWING) {
+      if (now - this.lastCaneSwingAt < CANE_SWING_COOLDOWN_MS) return;
+      this.lastCaneSwingAt = now;
       const dir = (a.x || 0) > 0 ? 'right' : 'left';
       this.onGesture('swing', { dir });
     }

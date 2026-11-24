@@ -97,6 +97,8 @@
     }
 
     .top-tabs {
+      position: relative;
+      z-index: 20;
       display: flex;
       gap: 6px;
       margin: 8px 0 10px;
@@ -174,7 +176,9 @@
       align-items: center;
       justify-content: center;
       position: relative;
+      z-index: 1;
       min-height: 0;
+      overflow: hidden;
       touch-action: none;
       cursor: grab;
     }
@@ -203,17 +207,19 @@
     .floor {
       position: relative;
       width: min(280px, 78vw);
-      height: min(220px, 62vw);
+      height: min(240px, 68vw);
       display: grid;
       place-items: end center;
       margin: 8px 0;
+      /* 3D layers must not steal clicks from tabs / controls */
+      pointer-events: none;
     }
     #shadow {
       position: absolute;
-      bottom: 18%;
+      bottom: 10%;
       left: 50%;
       width: 46%;
-      height: 18%;
+      height: 16%;
       margin-left: -23%;
       border-radius: 50%;
       background: radial-gradient(ellipse, rgba(0,0,0,0.55), transparent 70%);
@@ -222,13 +228,16 @@
       pointer-events: none;
     }
     #top-visual {
-      width: 42%;
-      height: 58%;
+      width: 52%;
+      height: 78%;
       position: relative;
       transform-style: preserve-3d;
-      transform-origin: 50% 85%;
+      /* Tip contact point — upright spin origin */
+      transform-origin: 50% 88%;
       will-change: transform;
       transition: filter 0.2s;
+      perspective: 720px;
+      pointer-events: none;
     }
     #top-visual.whip {
       animation: whipPulse 0.28s ease-out;
@@ -236,56 +245,93 @@
     #top-visual.fallen {
       filter: saturate(0.7) brightness(0.85);
     }
-    #top-body {
+    /* Spin assembly — rotateY about vertical symmetry axis through tip */
+    #top-spin {
       position: absolute;
       inset: 0;
+      transform-style: preserve-3d;
+      transform-origin: 50% 88%;
+      will-change: transform;
+      pointer-events: none;
+    }
+    .top3d-ring,
+    .top3d-tip,
+    .top3d-stem {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform-style: preserve-3d;
+      pointer-events: none;
+    }
+    /* Vertical stem standing above tip */
+    .top3d-stem {
+      width: 11%;
+      height: 28%;
+      margin-left: -5.5%;
+      top: 18%;
+      border-radius: 42% 42% 30% 30%;
+      background: linear-gradient(180deg, #f2eee8, color-mix(in srgb, var(--accent) 42%, #555));
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      transform: translateY(-42%);
+    }
+    /* Horizontal cross-section disks stacked along Y (not Z “horizon”) */
+    .top3d-ring {
+      border-radius: 50%;
       background:
         conic-gradient(
-          from var(--spin, 0deg),
-          color-mix(in srgb, var(--accent) 88%, #fff) 0deg,
-          color-mix(in srgb, var(--accent) 55%, #1a1010) 90deg,
-          color-mix(in srgb, var(--accent) 95%, #fff) 180deg,
-          color-mix(in srgb, var(--accent) 40%, #0a0808) 270deg,
-          color-mix(in srgb, var(--accent) 88%, #fff) 360deg
+          from 0deg,
+          color-mix(in srgb, var(--accent) 90%, #fff) 0deg,
+          color-mix(in srgb, var(--accent) 50%, #141010) 90deg,
+          color-mix(in srgb, var(--accent) 96%, #fff) 180deg,
+          color-mix(in srgb, var(--accent) 38%, #0a0808) 270deg,
+          color-mix(in srgb, var(--accent) 90%, #fff) 360deg
         );
-      clip-path: polygon(50% 0%, 78% 38%, 68% 100%, 32% 100%, 22% 38%);
       box-shadow:
-        0 12px 28px rgba(0, 0, 0, 0.45),
-        inset 0 0 20px rgba(255, 255, 255, 0.12);
+        0 8px 18px rgba(0, 0, 0, 0.4),
+        inset 0 0 14px rgba(255, 255, 255, 0.14);
+      transform: translate(-50%, -50%) translateY(var(--y, 0px)) rotateX(90deg);
     }
-    #top-body::before {
-      content: "";
-      position: absolute;
-      left: 42%;
-      top: 8%;
-      width: 16%;
-      height: 22%;
-      border-radius: 40% 40% 30% 30%;
-      background: linear-gradient(180deg, #f4f0ea, color-mix(in srgb, var(--accent) 40%, #666));
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    .top3d-crown {
+      width: 36%;
+      height: 36%;
+      --y: -52px;
+      opacity: 0.96;
     }
-    #top-body::after {
-      content: "";
-      position: absolute;
-      left: 46%;
-      bottom: -2%;
-      width: 8%;
-      height: 10%;
+    .top3d-disk {
+      width: 88%;
+      height: 88%;
+      --y: -12px;
+    }
+    .top3d-belly {
+      width: 56%;
+      height: 56%;
+      --y: 28px;
+      filter: brightness(0.92);
+    }
+    .top3d-tip {
+      width: 14%;
+      height: 14%;
+      margin-left: -7%;
+      top: 78%;
       border-radius: 50%;
-      background: #2a2220;
+      background: radial-gradient(circle at 35% 30%, #5a5048, #1a1614 70%);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      transform: translateY(-20%);
     }
-    body[data-top="neon"] #top-body {
+    body[data-top="neon"] .top3d-ring {
       box-shadow:
-        0 0 24px color-mix(in srgb, var(--accent) 45%, transparent),
-        0 12px 28px rgba(0, 0, 0, 0.4),
-        inset 0 0 20px rgba(255, 255, 255, 0.15);
+        0 0 22px color-mix(in srgb, var(--accent) 50%, transparent),
+        0 8px 18px rgba(0, 0, 0, 0.4),
+        inset 0 0 14px rgba(255, 255, 255, 0.16);
     }
-    body[data-top="glass"] #top-body {
-      opacity: 0.92;
+    body[data-top="glass"] .top3d-ring {
+      opacity: 0.9;
       filter: saturate(1.15);
     }
 
     .controls {
+      position: relative;
+      z-index: 20;
       display: grid;
       grid-template-columns: 1fr 1.4fr 1fr 0.9fr;
       gap: 8px;
@@ -295,24 +341,62 @@
       margin-top: 6px;
     }
     .controls button {
+      position: relative;
+      display: grid;
+      place-items: center;
       border: none;
       font: inherit;
-      font-weight: 700;
-      font-size: 0.88rem;
-      padding: 15px 8px;
+      padding: 14px 8px;
+      min-height: 52px;
       border-radius: 16px;
       cursor: pointer;
       color: var(--foam);
       background: rgba(7, 16, 21, 0.55);
       border: 1px solid rgba(122, 146, 156, 0.28);
     }
+    .controls button svg {
+      width: 1.55rem;
+      height: 1.55rem;
+      display: block;
+      pointer-events: none;
+    }
+    .controls button[data-tip]::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 10px);
+      transform: translateX(-50%) translateY(4px);
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(7, 16, 21, 0.94);
+      border: 1px solid rgba(122, 146, 156, 0.35);
+      color: var(--foam);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 5;
+    }
+    .controls button:hover[data-tip]::after,
+    .controls button:focus-visible[data-tip]::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
     #whip-btn {
       background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
       color: #0a1210;
       border: none;
-      font-size: 1.02rem;
-      letter-spacing: 0.04em;
     }
+    #whip-btn svg {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+    #mute-btn .icon-muted { display: none; }
+    #mute-btn.on .icon-sound { display: none; }
+    #mute-btn.on .icon-muted { display: block; }
     #mute-btn.on {
       color: #ffb4a8;
       border-color: rgba(255, 180, 168, 0.45);
@@ -382,7 +466,8 @@
       .nameplate .hint { display: none; }
       .floor { width: 100px; height: 80px; }
       .controls { grid-template-columns: 1fr 1.3fr; margin-top: 4px; }
-      #whip-btn, #tap-btn { padding: 10px; font-size: 0.8rem; }
+      #whip-btn, #tap-btn { padding: 10px; }
+      .controls button[data-tip]::after { display: none; }
     }
   </style>
 </head>
@@ -415,18 +500,53 @@
     <div class="floor" aria-hidden="true">
       <div id="shadow"></div>
       <div id="top-visual">
-        <div id="top-body"></div>
+        <div id="top-spin">
+          <div class="top3d-stem"></div>
+          <div class="top3d-ring top3d-crown"></div>
+          <div class="top3d-ring top3d-disk"></div>
+          <div class="top3d-ring top3d-belly"></div>
+          <div class="top3d-tip"></div>
+        </div>
       </div>
     </div>
   </main>
 
   <div class="controls">
-    <button type="button" id="tap-btn">点地</button>
-    <button type="button" id="whip-btn">抽打</button>
-    <button type="button" id="upright-btn">扶正</button>
-    <button type="button" id="mute-btn">静音</button>
+    <button type="button" id="tap-btn" aria-label="点地" data-tip="点地" title="点地">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3v11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8.5 11.5 12 15.5l3.5-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="19" r="1.6" fill="currentColor"/>
+      </svg>
+    </button>
+    <button type="button" id="whip-btn" aria-label="抽打" data-tip="抽打" title="抽打">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 18c3-1 5-4 6.5-7.5S15 4 20 4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M14.5 5.5 20 4l-1.2 5.4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M4 8.5h3.2M5.5 12H9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.7"/>
+      </svg>
+    </button>
+    <button type="button" id="upright-btn" aria-label="扶正" data-tip="扶正" title="扶正">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 4v16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M8 7.5 12 4l4 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 20h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M9.5 12H7m10 0h-2.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" opacity="0.75"/>
+      </svg>
+    </button>
+    <button type="button" id="mute-btn" aria-label="静音" data-tip="静音" title="静音">
+      <svg class="icon-sound" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 10v4h3.2L12 18.5V5.5L7.2 10H4Z" fill="currentColor"/>
+        <path d="M15.2 9.2a3.6 3.6 0 0 1 0 5.6M17.6 7a6.2 6.2 0 0 1 0 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <svg class="icon-muted" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 10v4h3.2L12 18.5V5.5L7.2 10H4Z" fill="currentColor"/>
+        <path d="M16 9.5 21 14.5M21 9.5 16 14.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
   </div>
-  <p class="help">戒指左右调倾角 · 上下换款 · 手杖挥动抽打 · 敲击点地<br>舞台左右拖动调倾 · 空格抽打 · T 点地 · R 扶正 · M 静音</p>
+  <p class="help">转速越高角动量越大，倾角会进动而非立刻倒下 · 戒指左右调倾 · 手杖抽打/点地<br>舞台拖动调倾 · 空格抽打 · T 点地 · R 扶正 · M 静音</p>
 
   <div id="toast" role="status"></div>
   <script type="module" src="./js/app.js"></script>

@@ -1,0 +1,73 @@
+name: iOS Cloud Build
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-cloud-build
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install, test, and build web bundle
+        working-directory: mobile
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Prepare Capacitor iOS project
+        working-directory: mobile
+        run: |
+          if [ ! -d ios/App ]; then
+            npx cap add ios
+          fi
+          npx cap sync ios
+
+      - name: Install CocoaPods
+        working-directory: mobile/ios/App
+        run: pod install --repo-update
+
+      - name: Build unsigned iOS app (cloud smoke build)
+        working-directory: mobile
+        run: |
+          rm -rf ios/build
+          mkdir -p ios/build
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ios/build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee ios/build/xcodebuild.log
+
+          APP_PATH="$(find ios/build/DerivedData/Build/Products -type d -name '*.app' -path '*Release-iphoneos*' | head -n 1)"
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app output found in Release-iphoneos products." >&2
+            exit 1
+          fi
+
+          mkdir -p ios/build/artifacts
+          cp -R "$APP_PATH" ios/build/artifacts/
+
+      - name: Upload iOS build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: airtop-ios-cloud-smoke
+          if-no-files-found: error
+          path: |
+            mobile/ios/build/artifacts
+            mobile/ios/build/xcodebuild.log

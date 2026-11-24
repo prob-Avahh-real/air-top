@@ -68,6 +68,19 @@ npm run mobile:android
 
 日常：改 `src/` 或 `index.html` → `npm run build` → `npx cap sync android` → 真机运行。
 
+### iOS 云端构建（A 方案，不占本机 Xcode 空间）
+
+仓库已提供 GitHub Actions 工作流：`.github/workflows/ios-cloud-build.yml`。
+
+1. 把代码推到 GitHub。
+2. 打开仓库 **Actions** 页，选择 **iOS Cloud Build**。
+3. 点击 **Run workflow**。
+4. 构建完成后在本次任务的 **Artifacts** 下载 `airtop-ios-cloud-smoke`。
+
+说明：
+- 这是“云端烟测包”流程（会产出 `Release-iphoneos` 的 `.app` 与构建日志），用于验证 Capacitor+iOS 工程可在云端通过编译。
+- 要分发到 iPhone（TestFlight/Ad Hoc）仍需要签名证书与描述文件，建议在此基础上接入 Fastlane Match 或 Xcode Cloud 完成签名与上传。
+
 ## 手势对照
 
 | 设备 | 动作 | 效果 |

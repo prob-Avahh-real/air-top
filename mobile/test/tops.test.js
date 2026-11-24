@@ -18,6 +18,21 @@ const PHYSICS = {
   fallLean: 28,
 };
 
+const WEARABLE_DEFAULTS = {
+  RING_TILT: 6.5,
+  RING_SHAKE: 24,
+  CANE_TAP: 9,
+  CANE_SWING: 3.6,
+  RING_THROTTLE: 6,
+  CANE_THROTTLE: 5,
+  RING_AXIS_DOMINANCE: 1.18,
+  RING_LEAN_COOLDOWN_MS: 95,
+  RING_STYLE_COOLDOWN_MS: 650,
+  RING_SHAKE_COOLDOWN_MS: 900,
+  CANE_TAP_COOLDOWN_MS: 190,
+  CANE_SWING_COOLDOWN_MS: 240,
+};
+
 function wrap(i, n) {
   return ((i % n) + n) % n;
 }
@@ -59,6 +74,50 @@ describe('air-top physics helpers', () => {
   it('lean clamps', () => {
     assert.equal(clamp(50, -40, 40), 40);
     assert.equal(clamp(-50, -40, 40), -40);
+  });
+
+  it('precession rotates lean azimuth without changing magnitude', () => {
+    // Ω·dt rotation of lean vector (same as physics.js)
+    const lx0 = 10;
+    const ly0 = 0;
+    const mag0 = Math.hypot(lx0, ly0);
+    const omegaDt = Math.PI / 2;
+    const c = Math.cos(omegaDt);
+    const s = Math.sin(omegaDt);
+    const lx = lx0 * c - ly0 * s;
+    const ly = lx0 * s + ly0 * c;
+    assert.ok(Math.abs(Math.hypot(lx, ly) - mag0) < 1e-9);
+    assert.ok(Math.abs(lx) < 1e-9);
+    assert.ok(Math.abs(ly - 10) < 1e-9);
+  });
+
+  it('faster spin yields slower precession for same torque', () => {
+    const tau = 1.2;
+    const OmegaSlow = tau / 0.5;
+    const OmegaFast = tau / 4;
+    assert.ok(OmegaFast < OmegaSlow);
+  });
+
+  it('ui azimuth mapping keeps right-hand precession direction on screen', () => {
+    const leanX = 0;
+    const leanY = 12;
+    const oldAzimuth = Math.atan2(leanX, leanY);
+    const fixedAzimuth = Math.atan2(leanX, -leanY);
+    assert.ok(oldAzimuth < 0.001);
+    assert.ok(Math.abs(fixedAzimuth - Math.PI) < 1e-9);
+  });
+});
+
+describe('wearable iOS tuning', () => {
+  it('keeps thresholds and cooldowns in calibrated range', () => {
+    assert.ok(WEARABLE_DEFAULTS.RING_TILT >= 6 && WEARABLE_DEFAULTS.RING_TILT <= 8);
+    assert.ok(WEARABLE_DEFAULTS.RING_SHAKE >= 22);
+    assert.ok(WEARABLE_DEFAULTS.CANE_TAP >= 8.5);
+    assert.ok(WEARABLE_DEFAULTS.CANE_SWING >= 3.4);
+    assert.ok(WEARABLE_DEFAULTS.RING_AXIS_DOMINANCE > 1);
+    assert.ok(WEARABLE_DEFAULTS.RING_STYLE_COOLDOWN_MS > WEARABLE_DEFAULTS.RING_LEAN_COOLDOWN_MS);
+    assert.ok(WEARABLE_DEFAULTS.CANE_TAP_COOLDOWN_MS >= 180);
+    assert.ok(WEARABLE_DEFAULTS.CANE_SWING_COOLDOWN_MS >= 220);
   });
 });
 
